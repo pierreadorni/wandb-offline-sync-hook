@@ -79,8 +79,12 @@ class WandbSyncer:
                 self._schedule(executor)
                 time.sleep(0.25)
                 for cf in command_files:
-                    if cf.is_file():
-                        cf.unlink()
+                    try:
+                        if cf.is_file():
+                            cf.unlink()
+                    except FileNotFoundError:
+                        # Another process may have already removed it.
+                        pass
                 if "PYTEST_CURRENT_TEST" in os.environ:
                     self._wait_for_all()
                     break

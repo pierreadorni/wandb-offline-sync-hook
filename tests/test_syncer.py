@@ -5,6 +5,7 @@ import subprocess
 import threading
 import unittest
 import unittest.mock
+from os import PathLike
 from pathlib import Path
 
 import pytest
@@ -47,13 +48,6 @@ def test_wandb_sync_timeout(tmp_path, caplog):
 
 def test_wandb_syncer_max_workers_concurrent(tmp_path):
     tmp_path = Path(tmp_path)
-    ws = WandbSyncer(tmp_path, max_workers=2, wait=0)
-
-    for i in range(3):
-        target = tmp_path / f"run{i}"
-        target.mkdir(parents=True)
-        (tmp_path / f"{i}.command").write_text(str(target.resolve()))
-
     started = []
     lock = threading.Lock()
     started_two = threading.Event()
@@ -66,7 +60,16 @@ def test_wandb_syncer_max_workers_concurrent(tmp_path):
                 started_two.set()
         release.wait(timeout=2)
 
-    ws.sync = slow_sync
+    class _TestSyncer(WandbSyncer):
+        def sync(self, dir: PathLike) -> None:
+            slow_sync(dir)
+
+    ws = _TestSyncer(tmp_path, max_workers=2, wait=0)
+
+    for i in range(3):
+        target = tmp_path / f"run{i}"
+        target.mkdir(parents=True)
+        (tmp_path / f"{i}.command").write_text(str(target.resolve()))
 
     thread = threading.Thread(target=ws.loop, daemon=True)
     thread.start()

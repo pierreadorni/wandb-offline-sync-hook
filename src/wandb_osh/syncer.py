@@ -65,7 +65,11 @@ class WandbSyncer:
                 command_files = []
                 targets = []
                 for command_file in self.command_dir.glob("*.command"):
-                    target = Path(command_file.read_text())
+                    try:
+                        target = Path(command_file.read_text())
+                    except FileNotFoundError:
+                        # File was removed between glob and read_text by another process.
+                        continue
                     command_files.append(command_file)
                     if not target.is_dir():
                         logger.error(
